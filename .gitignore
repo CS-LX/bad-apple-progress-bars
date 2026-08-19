@@ -1,1 +1,11 @@
-# Placeholder; project-specific ignores will be added with the implementation.
+# Build output
+**/bin/
+**/obj/
+
+# Test output
+TestResults/
+
+# IDE and user-specific files
+.vs/
+*.user
+*.suo
