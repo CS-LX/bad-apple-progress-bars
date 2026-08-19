@@ -16,8 +16,10 @@ public partial class MainWindow : Window
 {
     private readonly ProgressBarPool _progressBarPool;
     private readonly DispatcherTimer _playbackTimer;
+    private readonly CancellationTokenSource _windowCancellation = new();
     private BakedVideoStreamPlayer? _streamPlayer;
     private BakedFrame? _lastFrame;
+    private string? _temporaryBakedFilePath;
 
     public MainWindow()
     {
@@ -106,7 +108,7 @@ public partial class MainWindow : Window
 
             if (_streamPlayer is null)
             {
-                _streamPlayer = new BakedVideoStreamPlayer(ResolveBakedFilePath());
+                _streamPlayer = new BakedVideoStreamPlayer(await ResolveBakedFilePathAsync());
                 var metadata = _streamPlayer.Header.Metadata;
                 _progressBarPool.ConfigureGrid(metadata.Width, metadata.Height);
             }
@@ -174,13 +176,34 @@ public partial class MainWindow : Window
             PlaybackCanvas.ActualHeight / metadata.Height);
     }
 
-    private static string ResolveBakedFilePath()
+    private async Task<string> ResolveBakedFilePathAsync()
     {
-        var suppliedFile = Environment.GetCommandLineArgs()
-            .Skip(1)
-            .FirstOrDefault(path => string.Equals(Path.GetExtension(path), ".bpb", StringComparison.OrdinalIgnoreCase));
+        var suppliedFile = Environment.GetCommandLineArgs().Skip(1).FirstOrDefault(File.Exists);
 
-        return suppliedFile is null ? DemoBakedVideoFile.EnsureCreated() : Path.GetFullPath(suppliedFile);
+        if (suppliedFile is null)
+        {
+            return DemoBakedVideoFile.EnsureCreated();
+        }
+
+        var inputPath = Path.GetFullPath(suppliedFile);
+
+        if (string.Equals(Path.GetExtension(inputPath), ".bpb", StringComparison.OrdinalIgnoreCase))
+        {
+            return inputPath;
+        }
+
+        var temporaryDirectory = Path.Combine(Path.GetTempPath(), "BadAppleProgressBars", "bakes");
+        Directory.CreateDirectory(temporaryDirectory);
+        _temporaryBakedFilePath = Path.Combine(temporaryDirectory, $"startup-{Guid.NewGuid():N}.bpb");
+        var progress = new Progress<FfmpegBakeProgress>(value =>
+            Title = $"Bad Apple Progress Bars - baking {value.CompletedFrames}/{value.TotalFrames}");
+        await new FfmpegVideoBaker().BakeAsync(
+            inputPath,
+            _temporaryBakedFilePath,
+            progress: progress,
+            cancellationToken: _windowCancellation.Token);
+        Title = "Bad Apple Progress Bars";
+        return _temporaryBakedFilePath;
     }
 
     private void ReportFailure(Exception exception)
@@ -193,6 +216,14 @@ public partial class MainWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         _playbackTimer.Stop();
+        _windowCancellation.Cancel();
         _streamPlayer?.Dispose();
+
+        if (_temporaryBakedFilePath is not null && File.Exists(_temporaryBakedFilePath))
+        {
+            File.Delete(_temporaryBakedFilePath);
+        }
+
+        _windowCancellation.Dispose();
     }
 }

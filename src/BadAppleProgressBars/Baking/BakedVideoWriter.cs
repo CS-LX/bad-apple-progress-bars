@@ -62,6 +62,70 @@ public static class BakedVideoWriter
         writer.Flush();
     }
 
+    /// <summary>
+    /// Writes frames as they are produced. Only index offsets are retained in memory.
+    /// The metadata must already contain the exact frame count.
+    /// </summary>
+    public static void Write(Stream stream, BakedVideoMetadata metadata, IEnumerable<BakedFrame> frames)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(metadata);
+        ArgumentNullException.ThrowIfNull(frames);
+
+        if (!stream.CanWrite || !stream.CanSeek)
+        {
+            throw new ArgumentException("Streaming .bpb writing requires a writable, seekable destination stream.", nameof(stream));
+        }
+
+        var frameOffsets = new List<long>(metadata.FrameCount);
+
+        using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
+        WriteHeader(writer, metadata, indexOffset: 0);
+        var frameIndex = 0;
+
+        foreach (var frame in frames)
+        {
+            if (frameIndex >= metadata.FrameCount)
+            {
+                throw new ArgumentException("The frame sequence contains more frames than the supplied metadata.", nameof(frames));
+            }
+
+            if (frame is null)
+            {
+                throw new ArgumentException("A baked frame cannot be null.", nameof(frames));
+            }
+
+            if (frame.Timestamp != metadata.GetFrameTimestamp(frameIndex))
+            {
+                throw new ArgumentException("Frame timestamps must match the fixed frame rate declared in metadata.", nameof(frames));
+            }
+
+            var payloadLength = GetPayloadLength(frame.States);
+            frameOffsets.Add(stream.Position);
+            WriteFrameBlock(writer, frameIndex, frame, payloadLength);
+            frameIndex++;
+        }
+
+        if (frameIndex != metadata.FrameCount)
+        {
+            throw new ArgumentException("The frame sequence ended before the supplied metadata frame count.", nameof(frames));
+        }
+
+        var indexOffset = stream.Position;
+
+        for (var index = 0; index < frameOffsets.Count; index++)
+        {
+            writer.Write(index);
+            writer.Write(frameOffsets[index]);
+        }
+
+        var endPosition = stream.Position;
+        stream.Position = 0;
+        WriteHeader(writer, metadata, indexOffset);
+        stream.Position = endPosition;
+        writer.Flush();
+    }
+
     private static void WriteHeader(BinaryWriter writer, BakedVideoMetadata metadata, long indexOffset)
     {
         writer.Write(BakedVideoFormat.Magic);

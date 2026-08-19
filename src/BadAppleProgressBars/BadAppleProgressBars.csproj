@@ -8,4 +8,15 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="OpenCvSharp4.Windows" Version="4.13.0.20260627" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('third_party\ffmpeg\ffmpeg.exe')">
+    <None Update="third_party\ffmpeg\ffmpeg.exe"
+          Link="ffmpeg\ffmpeg.exe"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

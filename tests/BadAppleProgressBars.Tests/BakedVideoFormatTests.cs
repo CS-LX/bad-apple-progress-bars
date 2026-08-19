@@ -70,6 +70,28 @@ public class BakedVideoFormatTests
         Assert.Contains("truncated", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void WriteStreamingEnumeration_RoundTripsWithoutCollectingFramesInTheWriter()
+    {
+        var expectedFrames = SyntheticFrameFactory.Create()
+            .Select(BarStateFrameConverter.FromPlaybackFrame)
+            .ToArray();
+        IEnumerable<BakedFrame> streamingFrames = expectedFrames.Select(frame => frame);
+        using var stream = new MemoryStream();
+
+        BakedVideoWriter.Write(stream, CreateMetadata(), streamingFrames);
+        stream.Position = 0;
+        using var reader = new BakedVideoReader(stream, leaveOpen: true);
+        var actualFrames = new List<BakedFrame>();
+
+        while (reader.TryReadNextFrame(out var frame))
+        {
+            actualFrames.Add(frame);
+        }
+
+        AssertFramesEqual(expectedFrames, actualFrames);
+    }
+
     private static byte[] WriteSyntheticVideo()
     {
         var frames = SyntheticFrameFactory.Create()

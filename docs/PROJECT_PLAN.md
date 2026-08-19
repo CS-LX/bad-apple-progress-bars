@@ -65,8 +65,9 @@
 - WPF 官方 `ProgressBar`
 - `Canvas`：承载和定位多个 `ProgressBar`
 - `ControlTemplate` / `Style`：只用于调整官方进度条的布局和显示细节
-- `FFmpeg.AutoGen`：烘焙阶段的视频解码、帧时间戳和像素格式处理
-- OpenCvSharp：烘焙阶段的灰度化、缩放和二值化
+- 随 Windows x64 发布包分发的 `ffmpeg.exe`：以独立子进程完成视频解码、帧率归一化和保比例缩放
+- `OpenCvSharp4.Windows`：随发布输出 native runtime，负责 BGR→灰度、二值化，以及后续 Otsu/自适应阈值扩展
+- C# 烘焙器：读取 FFmpeg 的固定尺寸 BGR 原始帧流、调用 OpenCV 处理并执行单调块切分
 - `ArrayPool<byte>`：减少烘焙阶段的临时内存分配
 - 自定义二进制 `.bpb` 文件：保存烘焙后的进度条动画
 - 可选：NAudio，用于音频输出
@@ -168,7 +169,8 @@ cache/4A91...D82F_80x45_t128_i0_v1.bpb
 
 ```text
 while video has frames:
-    frame = FFmpeg decode
+    frame = bundled ffmpeg.exe decode / scale / BGR rawvideo output
+    frame = OpenCV grayscale / threshold
     frame = resize and grayscale
     binary = threshold(frame)
     blocks = split each row at W→B transitions
@@ -444,8 +446,9 @@ on WPF rendering tick:
 
 ### 阶段三：Bad Apple 烘焙与播放
 
-- 接入 FFmpeg.AutoGen。
-- 解码 Bad Apple 视频。
+- 发布包内包含 Windows x64 `ffmpeg.exe` 及对应许可证和源代码获取说明。
+- 启动时传入视频路径则自动调用内置 FFmpeg 烘焙；烘焙成功后立即打开生成的 `.bpb` 播放。
+- 解码 Bad Apple 视频并将其规范化为固定 30 FPS、80 × 45 的灰度帧流。
 - 输出到 `80 × 45` 网格。
 - 使用固定阈值二值化。
 - 生成 `.bpb` 缓存。
@@ -497,9 +500,9 @@ on WPF rendering tick:
 
 使用烘焙文件中的时间戳驱动播放，并在事件队列积压时跳过过期事件块。
 
-### native runtime 部署失败
+### FFmpeg 部署或许可证不合规
 
-第一版固定使用 Windows x64，运行时文件随程序发布，并在烘焙功能启动时检查 FFmpeg 和 OpenCV DLL 是否存在。
+第一版固定使用 Windows x64，`ffmpeg.exe` 随程序发布，并在烘焙功能启动时检查其存在和可执行性。发布前必须记录该二进制的来源、版本、构建配置、许可证及对应源代码获取方式；不得将 `--enable-nonfree` 构建用于再分发。
 
 ### FFmpeg 许可证问题
 

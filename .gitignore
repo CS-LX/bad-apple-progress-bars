@@ -10,3 +10,7 @@ TestResults/
 .idea/
 *.user
 *.suo
+
+# Release assets are generated locally and uploaded to GitHub Releases, never committed.
+artifacts/
+src/BadAppleProgressBars/third_party/ffmpeg/ffmpeg.exe
