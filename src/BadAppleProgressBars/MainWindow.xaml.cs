@@ -19,7 +19,6 @@ public partial class MainWindow : Window
     private readonly CancellationTokenSource _windowCancellation = new();
     private BakedVideoStreamPlayer? _streamPlayer;
     private BakedFrame? _lastFrame;
-    private string? _temporaryBakedFilePath;
 
     public MainWindow()
     {
@@ -192,18 +191,16 @@ public partial class MainWindow : Window
             return inputPath;
         }
 
-        var temporaryDirectory = Path.Combine(Path.GetTempPath(), "BadAppleProgressBars", "bakes");
-        Directory.CreateDirectory(temporaryDirectory);
-        _temporaryBakedFilePath = Path.Combine(temporaryDirectory, $"startup-{Guid.NewGuid():N}.bpb");
         var progress = new Progress<FfmpegBakeProgress>(value =>
             Title = $"Bad Apple Progress Bars - baking {value.CompletedFrames}/{value.TotalFrames}");
-        await new FfmpegVideoBaker().BakeAsync(
+        var cacheResult = await new BakedVideoCache().GetOrBakeAsync(
             inputPath,
-            _temporaryBakedFilePath,
             progress: progress,
             cancellationToken: _windowCancellation.Token);
-        Title = "Bad Apple Progress Bars";
-        return _temporaryBakedFilePath;
+        Title = cacheResult.CacheHit
+            ? "Bad Apple Progress Bars - cache hit"
+            : "Bad Apple Progress Bars";
+        return cacheResult.BakedFilePath;
     }
 
     private void ReportFailure(Exception exception)
@@ -218,12 +215,5 @@ public partial class MainWindow : Window
         _playbackTimer.Stop();
         _windowCancellation.Cancel();
         _streamPlayer?.Dispose();
-
-        if (_temporaryBakedFilePath is not null && File.Exists(_temporaryBakedFilePath))
-        {
-            File.Delete(_temporaryBakedFilePath);
-        }
-
-        _windowCancellation.Dispose();
     }
 }

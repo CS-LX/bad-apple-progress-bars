@@ -74,6 +74,17 @@
 
 建议目标框架为 `net8.0-windows`，发布目标为 `win-x64`。
 
+### 4.3 可选的 OpenCV 依赖裁剪方向（暂不实施）
+
+当前发布包同时包含显式分发的 `ffmpeg.exe` 和 OpenCV 的 `opencv_videoio_ffmpeg*.dll`。前者是本项目实际使用的命令行解码器，负责固定 FPS、等比缩放/留白和向标准输出提供 BGR 原始帧；后者是 OpenCV `VideoCapture` / `VideoWriter` 的内部 videoio 后端插件，不能作为 `ffmpeg.exe` 的替代品启动，也不参与当前烘焙路径。
+
+日后若需要缩小包体，可评估将 `OpenCvSharp4.Windows` 换为官方 `OpenCvSharp4.Windows.Slim`，以移除未使用的 `videoio` 与 `opencv_videoio_ffmpeg*.dll`。这是优化候选项，而不是当前决定；执行前必须同时满足：
+
+- Slim 包仍提供当前使用的 `Mat`、BGR→灰度和二值化 API。
+- 单元测试、真实视频首次烘焙、缓存命中播放和两种发布包测试全部通过。
+- 发布包中显式携带的 `ffmpeg.exe`、许可证与第三方声明保持不变。
+- 重新核对 Slim 包及剩余 native 依赖的许可证和实际包体收益。
+
 ## 5. UI 结构和进度条表现
 
 ### 5.1 控件结构
@@ -159,11 +170,13 @@ Value       = 单调块中的黑色前缀长度
 - 裁剪或留白模式
 - 烘焙算法版本
 
-建议文件名类似：
+实际首版缓存写入 `%LocalAppData%\BadAppleProgressBars\cache`，文件名由完整十六进制源哈希与渲染配置哈希组成，例如：
 
 ```text
-cache/4A91...D82F_80x45_t128_i0_v1.bpb
+4A91...D82F_AE63...9D20.bpb
 ```
+
+渲染配置哈希包含网格、FPS、阈值、黑白反转、等比留白规则、烘焙算法版本和 `.bpb` 格式版本。缓存命中后还必须核对 `.bpb` 文件头内的两份哈希；损坏或不一致的缓存会重新烘焙。
 
 ### 6.2 烘焙阶段
 
@@ -507,6 +520,14 @@ on WPF rendering tick:
 ### FFmpeg 许可证问题
 
 发布前应确认所使用 FFmpeg 构建是否启用了 GPL 组件，并随程序附带相应许可证和版权声明。
+
+### OpenCV videoio 依赖重复
+
+完整 OpenCvSharp Windows 包会带来 OpenCV 的 FFmpeg videoio 插件，但本项目目前并不通过 OpenCV 解码视频。短期保留它以降低依赖变更风险；后续可按“可选的 OpenCV 依赖裁剪方向”验证 Slim 包，不能直接删除 DLL 或假设该插件能替代独立 `ffmpeg.exe`。
+
+### x86 发布不可用
+
+当前使用的 `OpenCvSharp4.Windows` runtime 已不提供 x86 支持，首版 CI 和发布包仅支持 Windows x64。若未来恢复 x86，必须先更换并验证完整的 x86 OpenCV runtime 与 FFmpeg 二进制，再扩展构建矩阵。
 
 ## 12. 调研参考
 

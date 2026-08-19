@@ -1,7 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
 using BadAppleProgressBars.Domain;
 using OpenCvSharp;
 
@@ -70,9 +68,8 @@ public sealed class FfmpegVideoBaker
                 throw new FfmpegBakeException("The source video produced no usable frames or exceeds the .bpb frame limit.");
             }
 
-            var sourceHash = await ComputeSha256Async(sourcePath, cancellationToken).ConfigureAwait(false);
-            var profileHash = SHA256.HashData(Encoding.UTF8.GetBytes(
-                $"bpb1|opencv-gray-threshold-v1|{options.Width}x{options.Height}|fps={options.FramesPerSecond}|threshold={options.Threshold}"));
+            var sourceHash = await BakedVideoIdentityService.ComputeSourceHashAsync(sourcePath, cancellationToken).ConfigureAwait(false);
+            var profileHash = BakedVideoIdentityService.ComputeProfileHash(options);
             var metadata = new BakedVideoMetadata(
                 sourceHash,
                 profileHash,
@@ -202,7 +199,12 @@ public sealed class FfmpegVideoBaker
             ReadExactly(rawFile, bgrPixels);
             System.Runtime.InteropServices.Marshal.Copy(bgrPixels, 0, bgrFrame.Data, bgrPixels.Length);
             Cv2.CvtColor(bgrFrame, grayFrame, ColorConversionCodes.BGR2GRAY);
-            Cv2.Threshold(grayFrame, binaryFrame, options.Threshold - 1, 255, ThresholdTypes.Binary);
+            Cv2.Threshold(
+                grayFrame,
+                binaryFrame,
+                options.Threshold - 1,
+                255,
+                options.InvertBlackAndWhite ? ThresholdTypes.BinaryInv : ThresholdTypes.Binary);
             System.Runtime.InteropServices.Marshal.Copy(binaryFrame.Data, binaryPixels, 0, binaryPixels.Length);
 
             yield return new BakedFrame(
@@ -248,12 +250,6 @@ public sealed class FfmpegVideoBaker
 
         var length = endX - startX;
         states.Add(new BarState(slotId++, true, row, startX, length, length, blackPrefixLength));
-    }
-
-    private static async Task<byte[]> ComputeSha256Async(string path, CancellationToken cancellationToken)
-    {
-        await using var source = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 65_536, useAsync: true);
-        return await SHA256.HashDataAsync(source, cancellationToken).ConfigureAwait(false);
     }
 
     private static void ReadExactly(Stream stream, Span<byte> buffer)

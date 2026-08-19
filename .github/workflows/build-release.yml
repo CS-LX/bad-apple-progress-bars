@@ -1,0 +1,110 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      artifact-label: ${{ steps.version.outputs.artifact-label }}
+      is-release: ${{ steps.version.outputs.is-release }}
+    steps:
+      - id: version
+        shell: pwsh
+        run: |
+          $ref = '${{ github.ref }}'
+          $shortSha = '${{ github.sha }}'.Substring(0, 7)
+
+          if ($ref -like 'refs/tags/*') {
+            $tag = '${{ github.ref_name }}'
+            if ($tag -notmatch '^v\d+\.\d+\.\d+\.\d+$') {
+              throw "Release tags must use vX.X.X.X; received $tag."
+            }
+
+            "version=$($tag.Substring(1))" >> $env:GITHUB_OUTPUT
+            "artifact-label=$tag" >> $env:GITHUB_OUTPUT
+            'is-release=true' >> $env:GITHUB_OUTPUT
+          }
+          else {
+            "version=0.0.0.${{ github.run_number }}" >> $env:GITHUB_OUTPUT
+            "artifact-label=sha-$shortSha" >> $env:GITHUB_OUTPUT
+            'is-release=false' >> $env:GITHUB_OUTPUT
+          }
+
+  build:
+    needs: metadata
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: self-contained
+            self-contained: true
+          - flavor: framework-dependent
+            self-contained: false
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore and test
+        run: dotnet test BadAppleProgressBars.sln --configuration Release
+      - name: Download checked FFmpeg distribution
+        id: ffmpeg
+        shell: pwsh
+        run: |
+          $root = .\scripts\Acquire-Ffmpeg.ps1 -DestinationDirectory "$env:RUNNER_TEMP\ffmpeg"
+          "root=$root" >> $env:GITHUB_OUTPUT
+      - name: Publish ${{ matrix.flavor }} package
+        shell: pwsh
+        run: |
+          $name = "BadAppleProgressBars-${{ needs.metadata.outputs.artifact-label }}-win-x64-${{ matrix.flavor }}"
+          .\scripts\Publish-WinX64.ps1 `
+            -FfmpegRoot '${{ steps.ffmpeg.outputs.root }}' `
+            -RuntimeIdentifier win-x64 `
+            -SelfContained '${{ matrix.self-contained }}' `
+            -Version '${{ needs.metadata.outputs.version }}' `
+            -ArtifactName $name
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BadAppleProgressBars-${{ needs.metadata.outputs.artifact-label }}-win-x64-${{ matrix.flavor }}
+          path: artifacts/*.zip
+          if-no-files-found: error
+
+  release:
+    if: needs.metadata.outputs.is-release == 'true'
+    needs: [metadata, build]
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: BadAppleProgressBars-${{ needs.metadata.outputs.artifact-label }}-*
+          merge-multiple: true
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $files = Get-ChildItem -LiteralPath .\release-assets -Filter '*.zip' | ForEach-Object FullName
+          if ($files.Count -ne 2) {
+            throw "Expected two win-x64 packages, found $($files.Count)."
+          }
+
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $files --clobber
+          }
+          else {
+            gh release create $tag $files --title "Bad Apple Progress Bars $tag" --generate-notes
+          }

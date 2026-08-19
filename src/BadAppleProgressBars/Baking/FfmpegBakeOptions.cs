@@ -17,6 +17,8 @@ public sealed class FfmpegBakeOptions
 
     public byte Threshold { get; init; } = 128;
 
+    public bool InvertBlackAndWhite { get; init; }
+
     internal void Validate()
     {
         if (string.IsNullOrWhiteSpace(FfmpegExecutablePath))

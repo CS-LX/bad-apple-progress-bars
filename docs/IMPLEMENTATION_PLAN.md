@@ -423,33 +423,58 @@ UI 线程负责：
     source file
         ↓
     SHA-256
-        + VideoProfile hash
-        + AlgorithmVersion
+        + render profile hash
+          (grid, FPS, threshold, invert, letterbox, algorithm, .bpb version)
         ↓
-    cache key
+    %LocalAppData%\BadAppleProgressBars\cache\<source>_<profile>.bpb
 
 缓存匹配必须同时验证：
 
 - 源视频哈希。
-- 网格尺寸。
-- 阈值配置。
-- 黑白反转配置。
-- 裁剪/留白配置。
-- 烘焙格式版本。
+- 渲染配置哈希，其中包含网格尺寸、FPS、阈值、黑白反转、裁剪/留白规则、烘焙算法版本和 `.bpb` 格式版本。
+- `.bpb` 文件头中的源视频哈希和渲染配置哈希。
 
-### UI 控件
+命中时直接将缓存文件交给流式播放器；文件缺失、格式错误、哈希不一致或读取失败时重新烘焙。烘焙器先写入同目录临时文件，成功后才替换正式缓存文件。
 
-按以下顺序实现：
+### 交互边界
 
-1. 打开文件。
-2. 烘焙进度。
-3. 播放/暂停。
-4. 停止。
-5. 当前帧和总帧数。
-6. 跳转。
-7. 网格和阈值配置。
+窗口的可视内容继续严格保持为 `Canvas` 和其内的官方 `ProgressBar`，不在 WPF 视觉树加入按钮、文本或状态栏。首版保留键盘播放控制，烘焙进度、缓存命中和失败信息只写入窗口标题。打开文件和可视化配置面板属于后续阶段，必须在不破坏此视觉树约束的前提下另行设计。
 
-## 12. 性能验收
+### 验收标准
+
+- 首次传入视频文件会生成 `.bpb` 并播放。
+- 再次传入内容和渲染配置相同的文件时不启动 FFmpeg，标题显示缓存命中。
+- 改变阈值、反转、网格、FPS、留白规则、算法或格式版本时不会误用旧缓存。
+- 损坏或截断的缓存不会播放，程序会重新烘焙。
+
+## 12. 阶段九：GitHub 构建与发布
+
+### 目标
+
+在 `main` 的每次提交上验证构建，在合法版本标签上生成 GitHub Release。首版只发布 `win-x64`，因为当前 OpenCvSharp Windows runtime 不再支持 x86。
+
+### 后续优化候选项（不属于本阶段）
+
+当前 `OpenCvSharp4.Windows` 发布输出包含 `opencv_videoio_ffmpeg*.dll`。当前代码只使用 OpenCV 做图像处理，视频解码仍由随包 `ffmpeg.exe` 完成，因此该 DLL 不替代 FFmpeg CLI。后续可单独验证切换到 `OpenCvSharp4.Windows.Slim` 是否能去除未使用的 videoio 依赖；在全部自动测试、真实视频烘焙/缓存回放、两种 x64 包启动和许可证复核完成前，不实施该切换。
+
+### 工作流
+
+- `main` 提交：执行测试和两个并行 x64 打包任务，但不创建 Release。
+- 标签 `vX.X.X.X`：执行相同构建，并在两个包都成功后创建或更新同名 GitHub Release。
+- 其他格式的标签失败并提示版本格式要求。
+- CI 将标签去掉 `v` 后写入程序集/文件/信息版本；提交构建使用 `0.0.0.<GitHub run number>`。
+- 提交工件命名为 `BadAppleProgressBars-sha-<short-sha>-win-x64-<flavor>.zip`；标签工件命名为 `BadAppleProgressBars-vX.X.X.X-win-x64-<flavor>.zip`。
+- 两种 `flavor` 为 `framework-dependent`（已安装 .NET 8 Desktop Runtime）和 `self-contained`（无需用户预装 .NET）。
+- CI 从锁定版本的 Gyan FFmpeg 发布包下载，并验证 `ffmpeg.exe` SHA-256 后才打包。
+
+### 验收标准
+
+- 推送到 `main` 后可在 Actions 下载两个 ZIP 工件。
+- 推送合法 `vX.X.X.X` 标签后，Release 附带两个 ZIP。
+- 两个 ZIP 都携带 `ffmpeg/ffmpeg.exe`、其 `LICENSE`、`README.txt` 和 `THIRD_PARTY_NOTICES.md`。
+- `framework-dependent` 包可在具有 .NET 8 Desktop Runtime 的 x64 Windows 上启动；`self-contained` 包可在没有预装 .NET 的 x64 Windows 上启动。
+
+## 13. 性能验收
 
 ### 播放阶段指标
 
@@ -478,7 +503,7 @@ UI 线程负责：
 - GC 次数和暂停时间。
 - 烘焙文件大小。
 
-## 13. 代码质量要求
+## 14. 代码质量要求
 
 - 公共领域类型使用明确的不可变数据结构或只读字段。
 - 文件格式读写代码必须检查边界、版本和长度。
@@ -488,19 +513,17 @@ UI 线程负责：
 - 单元测试优先覆盖算法和文件格式，UI 测试覆盖关键交互。
 - 每完成一个阶段再提交一次可运行状态。
 
-## 14. 下一步执行项
+## 15. 下一步执行项
 
-下一次实施从阶段一开始：
+下一次实施从阶段八开始：
 
-1. 创建 WPF 项目和测试项目。
-2. 创建 Canvas 和基础窗口。
-3. 实现 MonotonicBlock 和 RowBlockEncoder。
-4. 为 BWBW、WBW、BBB 和 WBBBWBWWWBBWWB 编写单元测试。
-5. 创建最小 ProgressBar 控件池。
-6. 使用合成行数据验证实际 WPF 控件显示。
+1. 实现哈希缓存命中和损坏缓存回退测试。
+2. 保持窗口视觉树只有 Canvas 与官方 ProgressBar。
+3. 添加 GitHub Actions 的 x64 双包构建与版本标签发布。
+4. 在真实视频上测量首次烘焙与缓存命中的时间和内存。
 
-阶段一和阶段二完成前，不接入 FFmpeg，避免同时引入视频解码、缓存和 UI 问题。
+阶段八完成后，再进入通用视频配置与性能测量，不在播放路径重新引入 FFmpeg 或 OpenCV。
 
-## 15. 关联文档
+## 16. 关联文档
 
 - [项目目标与总体方案](./PROJECT_PLAN.md)

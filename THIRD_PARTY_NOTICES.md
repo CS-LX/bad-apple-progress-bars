@@ -15,4 +15,4 @@ Every release ZIP must contain the exact `LICENSE` and `README.txt` copied from 
 
 ## OpenCvSharp / OpenCV
 
-The application uses `OpenCvSharp4.Windows` `4.13.0.20260627`. Its NuGet package supplies the Windows native runtime during publish. See the package and upstream project for the applicable notices: <https://www.nuget.org/packages/OpenCvSharp4.Windows/> and <https://github.com/shimat/opencvsharp>.
+The application uses `OpenCvSharp4.Windows` `4.13.0.20260627`. Its NuGet package supplies the Windows x64 native runtime during publish. See the package and upstream project for the applicable notices: <https://www.nuget.org/packages/OpenCvSharp4.Windows/> and <https://github.com/shimat/opencvsharp>.
