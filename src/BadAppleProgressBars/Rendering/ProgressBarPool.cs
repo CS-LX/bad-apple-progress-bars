@@ -11,6 +11,8 @@ public sealed class ProgressBarPool
 {
     private readonly Canvas _canvas;
     private readonly List<ProgressBar> _bars = [];
+    private int[] _slotGenerations = [];
+    private int _generation;
     private int _gridWidth;
     private int _gridHeight;
 
@@ -50,6 +52,8 @@ public sealed class ProgressBarPool
         _gridHeight = height;
 
         var poolSize = checked(height * ((width + 1) / 2));
+        _slotGenerations = new int[poolSize];
+        _generation = 0;
 
         for (var index = 0; index < poolSize; index++)
         {
@@ -125,6 +129,108 @@ public sealed class ProgressBarPool
         for (; barIndex < _bars.Count; barIndex++)
         {
             _bars[barIndex].Visibility = Visibility.Hidden;
+        }
+    }
+
+    /// <summary>
+    /// Applies the explicit slot states stored in a baked frame without changing canvas children.
+    /// States omitted from the frame are hidden.
+    /// </summary>
+    public void ApplyStates(
+        IReadOnlyList<BarState> states,
+        double cellWidth,
+        double cellHeight)
+    {
+        ArgumentNullException.ThrowIfNull(states);
+        EnsureReady(cellWidth, cellHeight);
+
+        if (_generation == int.MaxValue)
+        {
+            Array.Clear(_slotGenerations);
+            _generation = 0;
+        }
+
+        _generation++;
+
+        foreach (var state in states)
+        {
+            ValidateState(state);
+
+            if (_slotGenerations[state.SlotId] == _generation)
+            {
+                throw new ArgumentException("A baked frame cannot contain the same slot more than once.", nameof(states));
+            }
+
+            _slotGenerations[state.SlotId] = _generation;
+            var progressBar = _bars[state.SlotId];
+
+            if (!state.Visible)
+            {
+                progressBar.Visibility = Visibility.Hidden;
+                continue;
+            }
+
+            Canvas.SetLeft(progressBar, state.StartX * cellWidth);
+            Canvas.SetTop(progressBar, state.Row * cellHeight);
+            progressBar.Width = state.Length * cellWidth;
+            progressBar.Height = cellHeight;
+            progressBar.Maximum = state.Maximum;
+            progressBar.Value = state.Value;
+            progressBar.Visibility = Visibility.Visible;
+        }
+
+        for (var slotId = 0; slotId < _bars.Count; slotId++)
+        {
+            if (_slotGenerations[slotId] != _generation)
+            {
+                _bars[slotId].Visibility = Visibility.Hidden;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Hides every pooled control while preserving the pool itself.
+    /// </summary>
+    public void Clear()
+    {
+        foreach (var progressBar in _bars)
+        {
+            progressBar.Visibility = Visibility.Hidden;
+        }
+    }
+
+    private void EnsureReady(double cellWidth, double cellHeight)
+    {
+        if (_gridWidth == 0 || _gridHeight == 0)
+        {
+            throw new InvalidOperationException("ConfigureGrid must be called before applying a frame.");
+        }
+
+        if (!IsPositiveFinite(cellWidth))
+        {
+            throw new ArgumentOutOfRangeException(nameof(cellWidth));
+        }
+
+        if (!IsPositiveFinite(cellHeight))
+        {
+            throw new ArgumentOutOfRangeException(nameof(cellHeight));
+        }
+    }
+
+    private void ValidateState(BarState state)
+    {
+        if (state.SlotId < 0 ||
+            state.SlotId >= _bars.Count ||
+            state.Row < 0 ||
+            state.Row >= _gridHeight ||
+            state.StartX < 0 ||
+            state.Length < 0 ||
+            state.Maximum < 0 ||
+            state.Value < 0 ||
+            state.Value > state.Maximum ||
+            (state.Visible && (state.Length == 0 || state.StartX > _gridWidth - state.Length)))
+        {
+            throw new ArgumentException("A baked bar state is invalid.");
         }
     }
 

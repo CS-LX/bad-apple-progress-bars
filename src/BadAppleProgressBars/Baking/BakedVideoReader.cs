@@ -41,6 +41,60 @@ public sealed class BakedVideoReader : IDisposable
     public BakedVideoHeader Header { get; }
 
     /// <summary>
+    /// Positions a seekable source at a frame block by reading only that frame's index entry.
+    /// </summary>
+    public void SeekToFrame(int frameIndex)
+    {
+        if (frameIndex < 0 || frameIndex > Header.Metadata.FrameCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(frameIndex));
+        }
+
+        if (!_stream.CanSeek)
+        {
+            throw new NotSupportedException("Seeking a .bpb file requires a seekable source stream.");
+        }
+
+        if (frameIndex == Header.Metadata.FrameCount)
+        {
+            _stream.Position = Header.IndexOffset;
+            _nextFrameIndex = frameIndex;
+            _nextIndexEntry = 0;
+            return;
+        }
+
+        var indexEntryOffset = checked(Header.IndexOffset + ((long)frameIndex * BakedVideoFormat.IndexEntrySize));
+
+        if (indexEntryOffset + BakedVideoFormat.IndexEntrySize > _stream.Length)
+        {
+            throw new BakedVideoFormatException("The .bpb file is truncated while seeking its index.");
+        }
+
+        _stream.Position = indexEntryOffset;
+
+        try
+        {
+            var indexedFrame = _reader.ReadInt32();
+            var frameOffset = _reader.ReadInt64();
+
+            if (indexedFrame != frameIndex ||
+                frameOffset < BakedVideoFormat.HeaderSize ||
+                frameOffset >= Header.IndexOffset)
+            {
+                throw new BakedVideoFormatException("The .bpb index contains an invalid frame offset.");
+            }
+
+            _stream.Position = frameOffset;
+            _nextFrameIndex = frameIndex;
+            _nextIndexEntry = 0;
+        }
+        catch (EndOfStreamException exception)
+        {
+            throw new BakedVideoFormatException("The .bpb file is truncated while seeking its index.", exception);
+        }
+    }
+
+    /// <summary>
     /// Reads the next frame block without reading future blocks or the index into memory.
     /// </summary>
     public bool TryReadNextFrame(out BakedFrame frame)

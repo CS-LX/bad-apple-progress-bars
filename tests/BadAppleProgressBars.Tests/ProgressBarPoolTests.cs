@@ -85,6 +85,38 @@ public class ProgressBarPoolTests
         });
     }
 
+    [Fact]
+    public void ApplyStates_UsesBakedSlotIdsAndHidesSlotsOmittedByTheSnapshot()
+    {
+        RunInSta(() =>
+        {
+            var canvas = new Canvas();
+            var pool = new ProgressBarPool(canvas);
+            pool.ConfigureGrid(width: 4, height: 1);
+            var bars = canvas.Children.OfType<ProgressBar>().ToArray();
+
+            pool.ApplyStates(
+            [
+                new BarState(SlotId: 1, Visible: true, Row: 0, StartX: 2, Length: 2, Maximum: 2, Value: 1),
+            ],
+            cellWidth: 10,
+            cellHeight: 5);
+
+            Assert.Equal(Visibility.Hidden, bars[0].Visibility);
+            AssertBar(bars[1], left: 20, top: 0, width: 20, height: 5, maximum: 2, value: 1);
+
+            pool.ApplyStates(
+            [
+                new BarState(SlotId: 0, Visible: false, Row: 0, StartX: 0, Length: 0, Maximum: 0, Value: 0),
+            ],
+            cellWidth: 10,
+            cellHeight: 5);
+
+            Assert.All(bars, bar => Assert.Equal(Visibility.Hidden, bar.Visibility));
+            Assert.Equal(2, canvas.Children.Count);
+        });
+    }
+
     private static void AssertBar(
         ProgressBar bar,
         double left,
