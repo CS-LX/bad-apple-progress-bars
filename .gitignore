@@ -7,5 +7,6 @@ TestResults/
 
 # IDE and user-specific files
 .vs/
+.idea/
 *.user
 *.suo
