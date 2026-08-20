@@ -101,10 +101,10 @@ jobs:
             throw "Expected two win-x64 packages, found $($files.Count)."
           }
 
-          gh release view $tag 2>$null
+          gh release view $tag --repo '${{ github.repository }}' 2>$null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $files --clobber
+            gh release upload $tag $files --clobber --repo '${{ github.repository }}'
           }
           else {
-            gh release create $tag $files --title "Bad Apple Progress Bars $tag" --generate-notes
+            gh release create $tag $files --title "Bad Apple Progress Bars $tag" --generate-notes --repo '${{ github.repository }}'
           }
