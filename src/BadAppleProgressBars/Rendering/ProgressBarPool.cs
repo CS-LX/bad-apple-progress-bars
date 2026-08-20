@@ -65,6 +65,11 @@ public sealed class ProgressBarPool
                 Visibility = Visibility.Hidden,
             };
 
+            if (Application.Current?.TryFindResource("StripedProgressBarStyle") is Style stripedStyle)
+            {
+                progressBar.Style = stripedStyle;
+            }
+
             _bars.Add(progressBar);
             _canvas.Children.Add(progressBar);
         }

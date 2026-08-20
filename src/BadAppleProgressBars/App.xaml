@@ -4,6 +4,85 @@
              xmlns:local="clr-namespace:BadAppleProgressBars"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <!--
+            Adapted from emoacht/WpfControlCollection's StripedProgressBar.xaml.
+            The DrawingBrush and its determinate animation are retained; only the
+            non-stripe palette uses the default WPF Aero2 ProgressBar colors.
+            See THIRD_PARTY_NOTICES.md for the MIT license notice.
+        -->
+        <SolidColorBrush x:Key="ProgressBar.Background" Color="#FFE6E6E6" />
+        <SolidColorBrush x:Key="ProgressBar.Progress" Color="#FF06B025" />
+        <SolidColorBrush x:Key="ProgressBar.Stripe" Color="#33FFFFFF" />
+
+        <Style x:Key="StripedProgressBarStyle" TargetType="{x:Type ProgressBar}">
+            <Setter Property="Background" Value="{StaticResource ProgressBar.Background}" />
+            <Setter Property="Foreground" Value="{StaticResource ProgressBar.Progress}" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ProgressBar}">
+                        <Grid x:Name="TemplateRoot">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Determinate">
+                                        <Storyboard RepeatBehavior="Forever">
+                                            <RectAnimation Storyboard.TargetName="Stripe"
+                                                           Storyboard.TargetProperty="(Shape.Fill).(TileBrush.Viewport)"
+                                                           Duration="0:0:1"
+                                                           From="0,0,20,20"
+                                                           To="-20,0,20,20" />
+                                        </Storyboard>
+                                    </VisualState>
+                                    <VisualState x:Name="Indeterminate" />
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+
+                            <Border Background="{TemplateBinding Background}" />
+                            <Rectangle x:Name="PART_Track" />
+                            <Grid x:Name="PART_Indicator"
+                                  ClipToBounds="True"
+                                  HorizontalAlignment="Left">
+                                <Rectangle x:Name="Indicator" Fill="{TemplateBinding Foreground}" />
+                                <Rectangle x:Name="Stripe">
+                                    <Rectangle.Fill>
+                                        <DrawingBrush TileMode="Tile"
+                                                      Stretch="Uniform"
+                                                      Viewport="0,0,20,20"
+                                                      ViewportUnits="Absolute">
+                                            <DrawingBrush.Drawing>
+                                                <GeometryDrawing Brush="{StaticResource ProgressBar.Stripe}">
+                                                    <GeometryDrawing.Geometry>
+                                                        <PathGeometry>
+                                                            <PathGeometry.Figures>
+                                                                <PathFigureCollection>
+                                                                    <PathFigure StartPoint="0,0">
+                                                                        <LineSegment Point="5,0" />
+                                                                        <LineSegment Point="10,5" />
+                                                                        <LineSegment Point="10,10" />
+                                                                    </PathFigure>
+                                                                    <PathFigure StartPoint="0,5">
+                                                                        <LineSegment Point="5,10" />
+                                                                        <LineSegment Point="0,10" />
+                                                                    </PathFigure>
+                                                                </PathFigureCollection>
+                                                            </PathGeometry.Figures>
+                                                        </PathGeometry>
+                                                    </GeometryDrawing.Geometry>
+                                                </GeometryDrawing>
+                                            </DrawingBrush.Drawing>
+                                        </DrawingBrush>
+                                    </Rectangle.Fill>
+                                </Rectangle>
+                            </Grid>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Value" Value="100">
+                                <Setter TargetName="Stripe" Property="Visibility" Value="Collapsed" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Application.Resources>
 </Application>
