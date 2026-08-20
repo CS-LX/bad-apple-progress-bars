@@ -1,12 +1,13 @@
 using BadAppleProgressBars.Domain;
+using BadAppleProgressBars.Playback;
 using BadAppleProgressBars.Segmentation;
 
-namespace BadAppleProgressBars.Playback;
+namespace BadAppleProgressBars.Tests;
 
 /// <summary>
-/// Provides a deterministic in-memory animation for playback and control-pool verification.
+/// Test-only baked-frame fixtures. They are not reachable from the player.
 /// </summary>
-public static class SyntheticFrameFactory
+internal static class TestPlaybackFrames
 {
     public const int GridWidth = 14;
     public const int GridHeight = 1;

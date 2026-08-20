@@ -15,6 +15,7 @@
 - 播放时从 .bpb 文件流式读取，不重新解码视频。
 - 首版网格尺寸为 80 × 45。
 - 首版先支持无音频的视频画面，音频属于后续扩展。
+- 主窗口视觉树只承载 Canvas 与官方 ProgressBar；启动文件与样式选择使用独立模态对话框。
 
 ### 首版暂不实现
 
@@ -233,6 +234,16 @@ Foreground 不主动设置，保留 WPF 默认值。
         Visibility = Hidden
 
 第一版可以按行顺序分配控件，不立即引入跨帧 ProgressBarId 匹配。控件池正确工作后，再接入轨道复用和差分更新。
+
+### 可选样式与启动输入
+
+控件池在创建前接收选定的 XAML Style，播放中不切换样式、不重新创建控件。提供三个资源键：
+
+    FlatProgressBarStyle
+    StripedProgressBarStyle
+    AeroProgressBarStyle
+
+无参数启动时依次显示 `OpenFileDialog` 与 WPF 样式选择窗口。命令行接受一个视频或 `.bpb` 文件，及可选 `--style flat|striped|aero`。不再由生产代码创建合成 `.bpb`；测试夹具仅放在测试项目。
 
 ### 验收标准
 

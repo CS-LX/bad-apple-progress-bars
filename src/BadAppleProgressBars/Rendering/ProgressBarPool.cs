@@ -16,6 +16,7 @@ public sealed class ProgressBarPool
 
     private readonly Canvas _canvas;
     private readonly List<ProgressBar> _bars = [];
+    private Style? _progressBarStyle;
     private int[] _slotGenerations = [];
     private int[] _gapColumnGenerations = [];
     private int[] _gapsBeforeColumn = [];
@@ -24,15 +25,31 @@ public sealed class ProgressBarPool
     private int _gridWidth;
     private int _gridHeight;
 
-    public ProgressBarPool(Canvas canvas)
+    public ProgressBarPool(Canvas canvas, Style? progressBarStyle = null)
     {
         _canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
+        _progressBarStyle = progressBarStyle;
     }
 
     /// <summary>
     /// Gets the number of controls currently owned by the pool.
     /// </summary>
     public int Count => _bars.Count;
+
+    /// <summary>
+    /// Selects the application-provided WPF style used when the pool is first created.
+    /// </summary>
+    public void SetStyle(Style progressBarStyle)
+    {
+        ArgumentNullException.ThrowIfNull(progressBarStyle);
+
+        if (_bars.Count != 0)
+        {
+            throw new InvalidOperationException("The progress-bar style must be selected before configuring the pool.");
+        }
+
+        _progressBarStyle = progressBarStyle;
+    }
 
     /// <summary>
     /// Creates the pool for a grid, or leaves the existing controls untouched when its size is unchanged.
@@ -76,9 +93,9 @@ public sealed class ProgressBarPool
                 Visibility = Visibility.Hidden,
             };
 
-            if (Application.Current?.TryFindResource("StripedProgressBarStyle") is Style stripedStyle)
+            if (_progressBarStyle is not null)
             {
-                progressBar.Style = stripedStyle;
+                progressBar.Style = _progressBarStyle;
             }
 
             _bars.Add(progressBar);

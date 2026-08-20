@@ -2,10 +2,12 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using BadAppleProgressBars.Baking;
 using BadAppleProgressBars.Domain;
 using BadAppleProgressBars.Playback;
 using BadAppleProgressBars.Rendering;
+using BadAppleProgressBars.Startup;
 
 namespace BadAppleProgressBars;
 
@@ -19,6 +21,7 @@ public partial class MainWindow : Window
     private readonly CancellationTokenSource _windowCancellation = new();
     private BakedVideoStreamPlayer? _streamPlayer;
     private BakedFrame? _lastFrame;
+    private string? _inputPath;
 
     public MainWindow()
     {
@@ -38,7 +41,25 @@ public partial class MainWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        await RestartPlaybackAsync();
+        try
+        {
+            var startupSelection = SelectStartupPlayback();
+
+            if (startupSelection is null)
+            {
+                Close();
+                return;
+            }
+
+            _inputPath = startupSelection.Value.InputPath;
+            _progressBarPool.SetStyle((Style)FindResource(
+                ProgressBarAppearanceResources.GetStyleKey(startupSelection.Value.Appearance)));
+            await RestartPlaybackAsync();
+        }
+        catch (Exception exception)
+        {
+            ReportFailure(exception);
+        }
     }
 
     private void OnPlaybackTimerTick(object? sender, EventArgs e)
@@ -107,7 +128,7 @@ public partial class MainWindow : Window
 
             if (_streamPlayer is null)
             {
-                _streamPlayer = new BakedVideoStreamPlayer(await ResolveBakedFilePathAsync());
+                _streamPlayer = new BakedVideoStreamPlayer(await ResolveBakedFilePathAsync(_inputPath!));
                 var metadata = _streamPlayer.Header.Metadata;
                 _progressBarPool.ConfigureGrid(metadata.Width, metadata.Height);
             }
@@ -175,16 +196,56 @@ public partial class MainWindow : Window
             PlaybackCanvas.ActualHeight);
     }
 
-    private async Task<string> ResolveBakedFilePathAsync()
+    private StartupPlaybackSelection? SelectStartupPlayback()
     {
-        var suppliedFile = Environment.GetCommandLineArgs().Skip(1).FirstOrDefault(File.Exists);
+        var options = CommandLineStartupOptionsParser.Parse(Environment.GetCommandLineArgs().Skip(1));
+        var inputPath = options.InputPath;
+        var appearance = options.Appearance ?? ProgressBarAppearance.Aero;
 
-        if (suppliedFile is null)
+        if (options.IsInteractiveLaunch)
         {
-            return DemoBakedVideoFile.EnsureCreated();
+            var openFileDialog = new OpenFileDialog
+            {
+                Title = "Choose a video or baked Bad Apple Progress Bars file",
+                Filter = "Supported video or BPB files|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.webm;*.m4v;*.bpb|Baked Progress Bars files|*.bpb|Video files|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.webm;*.m4v|All files|*.*",
+                CheckFileExists = true,
+                Multiselect = false,
+            };
+
+            if (openFileDialog.ShowDialog(this) != true)
+            {
+                return null;
+            }
+
+            inputPath = openFileDialog.FileName;
+
+            if (options.Appearance is null)
+            {
+                var styleDialog = new StyleSelectionWindow(appearance)
+                {
+                    Owner = this,
+                };
+
+                if (styleDialog.ShowDialog() != true)
+                {
+                    return null;
+                }
+
+                appearance = styleDialog.SelectedAppearance;
+            }
         }
 
-        var inputPath = Path.GetFullPath(suppliedFile);
+        if (inputPath is null || !File.Exists(inputPath))
+        {
+            throw new FileNotFoundException("The selected input file does not exist.", inputPath);
+        }
+
+        return new StartupPlaybackSelection(inputPath, appearance);
+    }
+
+    private async Task<string> ResolveBakedFilePathAsync(string inputPath)
+    {
+        inputPath = Path.GetFullPath(inputPath);
 
         if (string.Equals(Path.GetExtension(inputPath), ".bpb", StringComparison.OrdinalIgnoreCase))
         {
@@ -216,4 +277,6 @@ public partial class MainWindow : Window
         _windowCancellation.Cancel();
         _streamPlayer?.Dispose();
     }
+
+    private readonly record struct StartupPlaybackSelection(string InputPath, ProgressBarAppearance Appearance);
 }

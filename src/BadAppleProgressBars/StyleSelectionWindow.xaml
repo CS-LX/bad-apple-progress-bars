@@ -1,0 +1,48 @@
+<Window x:Class="BadAppleProgressBars.StyleSelectionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Choose Progress Bar Style"
+        SizeToContent="WidthAndHeight"
+        MinWidth="420"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Choose how the progress bars should look while this video plays."
+                   TextWrapping="Wrap" />
+
+        <StackPanel Grid.Row="2">
+            <RadioButton x:Name="FlatOption" GroupName="Appearance" Margin="0,0,0,8">
+                <StackPanel>
+                    <TextBlock Text="Flat" FontWeight="SemiBold" />
+                    <TextBlock Text="Built-in WPF flat progress bars." Opacity="0.72" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton x:Name="StripedOption" GroupName="Appearance" Margin="0,0,0,8">
+                <StackPanel>
+                    <TextBlock Text="Flat + stripes" FontWeight="SemiBold" />
+                    <TextBlock Text="Flat bars with the animated Striped ProgressBar overlay." Opacity="0.72" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton x:Name="AeroOption" GroupName="Appearance">
+                <StackPanel>
+                    <TextBlock Text="WPF Aero" FontWeight="SemiBold" />
+                    <TextBlock Text="Built-in Aero track, border, glass highlights, and stripes." Opacity="0.72" />
+                </StackPanel>
+            </RadioButton>
+        </StackPanel>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Width="88" Margin="0,0,8,0" IsCancel="True" Content="Cancel" />
+            <Button Width="88" IsDefault="True" Click="OnPlayClick" Content="Play" />
+        </StackPanel>
+    </Grid>
+</Window>

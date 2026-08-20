@@ -4,7 +4,7 @@ WPF video playback built from native Windows `ProgressBar` controls.
 
 ## Development launch
 
-Without an argument, the program plays a small pre-baked synthetic animation:
+Launching without an argument opens a native file picker, then a startup-only WPF dialog for choosing the progress-bar appearance:
 
 ```powershell
 dotnet run --project .\src\BadAppleProgressBars\BadAppleProgressBars.csproj
@@ -15,6 +15,18 @@ Pass a `.bpb` file to stream it directly. Pass a video file to bake it first wit
 ```powershell
 dotnet run --project .\src\BadAppleProgressBars\BadAppleProgressBars.csproj -- .\video.mp4
 ```
+
+Use `--style flat`, `--style striped`, or `--style aero` with a file to skip the style picker. The default for a command-line file is `aero`:
+
+```powershell
+dotnet run --project .\src\BadAppleProgressBars\BadAppleProgressBars.csproj -- --style striped .\video.mp4
+```
+
+The three appearances all use true WPF `ProgressBar` controls:
+
+- `flat`: WPF Aero2 flat track and fill.
+- `striped`: the flat WPF template plus the Striped ProgressBar overlay.
+- `aero`: WPF's built-in Aero track, border, glass highlight, fill edges, and the same stripe overlay.
 
 For video input, a reviewed Windows x64 `ffmpeg.exe` must be placed at `src/BadAppleProgressBars/third_party/ffmpeg/ffmpeg.exe` before build/publish. It is copied beside the application as `ffmpeg/ffmpeg.exe`; the program does not use the user's PATH. See [the FFmpeg distribution notes](./src/BadAppleProgressBars/third_party/ffmpeg/README.md) before adding a binary.
 

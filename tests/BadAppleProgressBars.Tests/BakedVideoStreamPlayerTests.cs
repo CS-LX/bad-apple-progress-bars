@@ -13,7 +13,7 @@ public class BakedVideoStreamPlayerTests
         var bakedFilePath = WriteSyntheticVideo();
         long timestamp = 0;
         var clock = new PlaybackClock(() => timestamp, TimeSpan.TicksPerSecond);
-        var expected = SyntheticFrameFactory.Create().Select(BarStateFrameConverter.FromPlaybackFrame).ToArray();
+        var expected = TestPlaybackFrames.Create().Select(BarStateFrameConverter.FromPlaybackFrame).ToArray();
 
         try
         {
@@ -51,7 +51,7 @@ public class BakedVideoStreamPlayerTests
         var bakedFilePath = WriteSyntheticVideo();
         long timestamp = 0;
         var clock = new PlaybackClock(() => timestamp, TimeSpan.TicksPerSecond);
-        var expected = SyntheticFrameFactory.Create().Select(BarStateFrameConverter.FromPlaybackFrame).ToArray();
+        var expected = TestPlaybackFrames.Create().Select(BarStateFrameConverter.FromPlaybackFrame).ToArray();
 
         try
         {
@@ -92,12 +92,12 @@ public class BakedVideoStreamPlayerTests
     private static string WriteSyntheticVideo()
     {
         var path = Path.Combine(Path.GetTempPath(), $"bad-apple-progress-bars-{Guid.NewGuid():N}.bpb");
-        var frames = SyntheticFrameFactory.Create().Select(BarStateFrameConverter.FromPlaybackFrame).ToArray();
+        var frames = TestPlaybackFrames.Create().Select(BarStateFrameConverter.FromPlaybackFrame).ToArray();
         var metadata = new BakedVideoMetadata(
             new byte[BakedVideoMetadata.HashLength],
             new byte[BakedVideoMetadata.HashLength],
-            SyntheticFrameFactory.GridWidth,
-            SyntheticFrameFactory.GridHeight,
+            TestPlaybackFrames.GridWidth,
+            TestPlaybackFrames.GridHeight,
             frameRateNumerator: 4,
             frameRateDenominator: 3,
             frameCount: frames.Length);

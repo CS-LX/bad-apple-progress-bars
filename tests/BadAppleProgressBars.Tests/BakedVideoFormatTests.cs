@@ -10,7 +10,7 @@ public class BakedVideoFormatTests
     public void WriteThenRead_RoundTripsHeaderAndEveryBarStateOneFrameAtATime()
     {
         var metadata = CreateMetadata();
-        var expectedFrames = SyntheticFrameFactory.Create()
+        var expectedFrames = TestPlaybackFrames.Create()
             .Select(BarStateFrameConverter.FromPlaybackFrame)
             .ToArray();
 
@@ -73,7 +73,7 @@ public class BakedVideoFormatTests
     [Fact]
     public void WriteStreamingEnumeration_RoundTripsWithoutCollectingFramesInTheWriter()
     {
-        var expectedFrames = SyntheticFrameFactory.Create()
+        var expectedFrames = TestPlaybackFrames.Create()
             .Select(BarStateFrameConverter.FromPlaybackFrame)
             .ToArray();
         IEnumerable<BakedFrame> streamingFrames = expectedFrames.Select(frame => frame);
@@ -94,7 +94,7 @@ public class BakedVideoFormatTests
 
     private static byte[] WriteSyntheticVideo()
     {
-        var frames = SyntheticFrameFactory.Create()
+        var frames = TestPlaybackFrames.Create()
             .Select(BarStateFrameConverter.FromPlaybackFrame)
             .ToArray();
         using var stream = new MemoryStream();
@@ -110,11 +110,11 @@ public class BakedVideoFormatTests
         return new BakedVideoMetadata(
             sourceHash,
             profileHash,
-            SyntheticFrameFactory.GridWidth,
-            SyntheticFrameFactory.GridHeight,
+            TestPlaybackFrames.GridWidth,
+            TestPlaybackFrames.GridHeight,
             frameRateNumerator: 4,
             frameRateDenominator: 3,
-            frameCount: SyntheticFrameFactory.Create().Length);
+            frameCount: TestPlaybackFrames.Create().Length);
     }
 
     private static void AssertHeader(BakedVideoMetadata expected, BakedVideoHeader actual)
