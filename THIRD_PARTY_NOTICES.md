@@ -6,8 +6,8 @@ The WPF `ProgressBar` control template in `src/BadAppleProgressBars/App.xaml`
 adapts the stripe drawing and animation from
 [`StripedProgressBar.xaml`](https://gist.github.com/emoacht/febe527df16dd302d55f80921e044be0),
 which is an excerpt from [emoacht/WpfControlCollection](https://github.com/emoacht/WpfControlCollection).
-Only its non-stripe colour palette is changed to the WPF Aero2 default
-ProgressBar colours.
+Its stripe drawing and animation are used inside the WPF Aero ProgressBar
+template described below.
 
 The upstream work is licensed under the MIT License:
 
@@ -32,6 +32,18 @@ The upstream work is licensed under the MIT License:
 > LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 > OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 > SOFTWARE.
+
+## WPF Aero ProgressBar template
+
+The track, borders, glass highlight, fill-edge, and indeterminate-state
+template structure in `src/BadAppleProgressBars/App.xaml` is reused from the
+WPF built-in Aero theme:
+
+- Source: <https://github.com/dotnet/wpf/blob/main/src/Microsoft.DotNet.Wpf/src/Themes/PresentationFramework.Aero/themes/Aero.NormalColor.xaml>
+- License: MIT, as provided by the .NET WPF repository.
+
+Only the existing third-party stripe overlay is added inside the official
+template's determinate fill area.
 
 ## FFmpeg
 
