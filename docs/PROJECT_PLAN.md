@@ -135,7 +135,7 @@ Value       = 单调块中的黑色前缀长度
 
 - `flat`：WPF Aero2 扁平进度条。
 - `striped`：Aero2 扁平进度条加 Gist 的条纹层。
-- `aero`：WPF Aero 轨道、边框、玻璃高光和填充边缘，加同一条纹层。
+- `aero`：WPF Aero 轨道、边框、玻璃高光和填充边缘，不含条纹层。
 
 命令行可使用 `--style flat|striped|aero <file>` 指定样式；传入文件但未指定样式时默认 `aero`。无参数交互启动时由用户选择。
 

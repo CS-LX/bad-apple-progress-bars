@@ -42,8 +42,8 @@ WPF built-in Aero theme:
 - Source: <https://github.com/dotnet/wpf/blob/main/src/Microsoft.DotNet.Wpf/src/Themes/PresentationFramework.Aero/themes/Aero.NormalColor.xaml>
 - License: MIT, as provided by the .NET WPF repository.
 
-Only the existing third-party stripe overlay is added inside the official
-template's determinate fill area.
+The third-party stripe overlay is used only by `StripedProgressBarStyle`; the
+`AeroProgressBarStyle` remains the WPF Aero template without that overlay.
 
 ## FFmpeg
 

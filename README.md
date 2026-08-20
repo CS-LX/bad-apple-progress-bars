@@ -26,7 +26,7 @@ The three appearances all use true WPF `ProgressBar` controls:
 
 - `flat`: WPF Aero2 flat track and fill.
 - `striped`: the flat WPF template plus the Striped ProgressBar overlay.
-- `aero`: WPF's built-in Aero track, border, glass highlight, fill edges, and the same stripe overlay.
+- `aero`: WPF's built-in Aero track, border, glass highlight, and fill edges.
 
 For video input, a reviewed Windows x64 `ffmpeg.exe` must be placed at `src/BadAppleProgressBars/third_party/ffmpeg/ffmpeg.exe` before build/publish. It is copied beside the application as `ffmpeg/ffmpeg.exe`; the program does not use the user's PATH. See [the FFmpeg distribution notes](./src/BadAppleProgressBars/third_party/ffmpeg/README.md) before adding a binary.
 

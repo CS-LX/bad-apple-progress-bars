@@ -142,7 +142,7 @@
                 </Setter>
             </Style>
 
-            <!-- WPF built-in Windows 7 Aero template with the same stripe overlay. -->
+            <!-- WPF built-in Windows 7 Aero template without the Gist stripe overlay. -->
             <Style x:Key="AeroProgressBarStyle" TargetType="{x:Type ProgressBar}">
                 <Setter Property="Foreground" Value="#FF06B025" />
                 <Setter Property="Background" Value="{StaticResource &#304;}" />
@@ -155,15 +155,7 @@
                             <Grid x:Name="TemplateRoot" SnapsToDevicePixels="True">
                                 <VisualStateManager.VisualStateGroups>
                                     <VisualStateGroup x:Name="CommonStates">
-                                        <VisualState x:Name="Determinate">
-                                            <Storyboard RepeatBehavior="Forever">
-                                                <RectAnimation Storyboard.TargetName="Stripe"
-                                                               Storyboard.TargetProperty="(Shape.Fill).(TileBrush.Viewport)"
-                                                               Duration="0:0:1"
-                                                               From="0,0,20,20"
-                                                               To="-20,0,20,20" />
-                                            </Storyboard>
-                                        </VisualState>
+                                        <VisualState x:Name="Determinate" />
                                         <VisualState x:Name="Indeterminate">
                                             <Storyboard RepeatBehavior="Forever">
                                                 <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)"
@@ -196,38 +188,6 @@
                                            Margin="1">
                                     <Grid x:Name="Foreground">
                                         <Rectangle x:Name="Indicator" Fill="{TemplateBinding Foreground}" />
-
-                                        <!-- Original StripedProgressBar.xaml overlay. -->
-                                        <Rectangle x:Name="Stripe">
-                                            <Rectangle.Fill>
-                                                <DrawingBrush TileMode="Tile"
-                                                              Stretch="Uniform"
-                                                              Viewport="0,0,20,20"
-                                                              ViewportUnits="Absolute">
-                                                    <DrawingBrush.Drawing>
-                                                        <GeometryDrawing Brush="{StaticResource ProgressBar.Stripe}">
-                                                            <GeometryDrawing.Geometry>
-                                                                <PathGeometry>
-                                                                    <PathGeometry.Figures>
-                                                                        <PathFigureCollection>
-                                                                            <PathFigure StartPoint="0,0">
-                                                                                <LineSegment Point="5,0" />
-                                                                                <LineSegment Point="10,5" />
-                                                                                <LineSegment Point="10,10" />
-                                                                            </PathFigure>
-                                                                            <PathFigure StartPoint="0,5">
-                                                                                <LineSegment Point="5,10" />
-                                                                                <LineSegment Point="0,10" />
-                                                                            </PathFigure>
-                                                                        </PathFigureCollection>
-                                                                    </PathGeometry.Figures>
-                                                                </PathGeometry>
-                                                            </GeometryDrawing.Geometry>
-                                                        </GeometryDrawing>
-                                                    </DrawingBrush.Drawing>
-                                                </DrawingBrush>
-                                            </Rectangle.Fill>
-                                        </Rectangle>
 
                                         <Grid x:Name="Animation" ClipToBounds="True">
                                             <Rectangle x:Name="PART_GlowRect"
@@ -314,9 +274,6 @@
                                 </Trigger>
                                 <Trigger Property="IsIndeterminate" Value="False">
                                     <Setter TargetName="Animation" Property="Background" Value="#80B5FFA9" />
-                                </Trigger>
-                                <Trigger Property="Value" Value="100">
-                                    <Setter TargetName="Stripe" Property="Visibility" Value="Collapsed" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>

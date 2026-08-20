@@ -35,7 +35,7 @@
             <RadioButton x:Name="AeroOption" GroupName="Appearance">
                 <StackPanel>
                     <TextBlock Text="WPF Aero" FontWeight="SemiBold" />
-                    <TextBlock Text="Built-in Aero track, border, glass highlights, and stripes." Opacity="0.72" />
+                    <TextBlock Text="Built-in Aero track, border, glass highlights, and fill edges." Opacity="0.72" />
                 </StackPanel>
             </RadioButton>
         </StackPanel>
