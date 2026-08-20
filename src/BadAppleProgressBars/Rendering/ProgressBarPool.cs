@@ -9,10 +9,18 @@ namespace BadAppleProgressBars.Rendering;
 /// </summary>
 public sealed class ProgressBarPool
 {
+    /// <summary>
+    /// The fixed device-independent spacing between distinct progress bars.
+    /// </summary>
+    public const double InterProgressBarGap = 2;
+
     private readonly Canvas _canvas;
     private readonly List<ProgressBar> _bars = [];
     private int[] _slotGenerations = [];
-    private int _generation;
+    private int[] _gapColumnGenerations = [];
+    private int[] _gapsBeforeColumn = [];
+    private int _slotGeneration;
+    private int _gapGeneration;
     private int _gridWidth;
     private int _gridHeight;
 
@@ -53,7 +61,10 @@ public sealed class ProgressBarPool
 
         var poolSize = checked(height * ((width + 1) / 2));
         _slotGenerations = new int[poolSize];
-        _generation = 0;
+        _gapColumnGenerations = new int[width];
+        _gapsBeforeColumn = new int[width + 1];
+        _slotGeneration = 0;
+        _gapGeneration = 0;
 
         for (var index = 0; index < poolSize; index++)
         {
@@ -80,30 +91,35 @@ public sealed class ProgressBarPool
     /// </summary>
     public void ApplyFrame(
         IReadOnlyList<IReadOnlyList<MonotonicBlock>> rows,
-        double cellWidth,
-        double cellHeight)
+        double surfaceWidth,
+        double surfaceHeight)
     {
         ArgumentNullException.ThrowIfNull(rows);
 
-        if (_gridWidth == 0 || _gridHeight == 0)
-        {
-            throw new InvalidOperationException("ConfigureGrid must be called before applying a frame.");
-        }
+        EnsureReady(surfaceWidth, surfaceHeight);
 
         if (rows.Count > _gridHeight)
         {
             throw new ArgumentException("The frame has more rows than the configured grid.", nameof(rows));
         }
 
-        if (!IsPositiveFinite(cellWidth))
+        BeginGapLayout();
+
+        foreach (var blocks in rows)
         {
-            throw new ArgumentOutOfRangeException(nameof(cellWidth));
+            if (blocks is null)
+            {
+                throw new ArgumentException("A frame row cannot be null.", nameof(rows));
+            }
+
+            foreach (var block in blocks)
+            {
+                ValidateBlock(block);
+                MarkGapColumn(block.StartX);
+            }
         }
 
-        if (!IsPositiveFinite(cellHeight))
-        {
-            throw new ArgumentOutOfRangeException(nameof(cellHeight));
-        }
+        var layout = CompleteLayout(surfaceWidth, surfaceHeight);
 
         var barIndex = 0;
 
@@ -113,21 +129,18 @@ public sealed class ProgressBarPool
 
             foreach (var block in blocks)
             {
-                ValidateBlock(block);
-
                 if (barIndex >= _bars.Count)
                 {
                     throw new ArgumentException("The frame requires more progress bars than the configured pool.", nameof(rows));
                 }
 
-                var progressBar = _bars[barIndex++];
-                Canvas.SetLeft(progressBar, block.StartX * cellWidth);
-                Canvas.SetTop(progressBar, row * cellHeight);
-                progressBar.Width = block.Length * cellWidth;
-                progressBar.Height = cellHeight;
-                progressBar.Maximum = block.Length;
-                progressBar.Value = block.BlackPrefixLength;
-                progressBar.Visibility = Visibility.Visible;
+                ApplyBarLayout(
+                    _bars[barIndex++],
+                    row,
+                    block.StartX,
+                    block.Length,
+                    block.BlackPrefixLength,
+                    layout);
             }
         }
 
@@ -143,30 +156,41 @@ public sealed class ProgressBarPool
     /// </summary>
     public void ApplyStates(
         IReadOnlyList<BarState> states,
-        double cellWidth,
-        double cellHeight)
+        double surfaceWidth,
+        double surfaceHeight)
     {
         ArgumentNullException.ThrowIfNull(states);
-        EnsureReady(cellWidth, cellHeight);
+        EnsureReady(surfaceWidth, surfaceHeight);
 
-        if (_generation == int.MaxValue)
+        if (_slotGeneration == int.MaxValue)
         {
             Array.Clear(_slotGenerations);
-            _generation = 0;
+            _slotGeneration = 0;
         }
 
-        _generation++;
+        _slotGeneration++;
+        BeginGapLayout();
 
         foreach (var state in states)
         {
             ValidateState(state);
 
-            if (_slotGenerations[state.SlotId] == _generation)
+            if (state.Visible)
+            {
+                MarkGapColumn(state.StartX);
+            }
+        }
+
+        var layout = CompleteLayout(surfaceWidth, surfaceHeight);
+
+        foreach (var state in states)
+        {
+            if (_slotGenerations[state.SlotId] == _slotGeneration)
             {
                 throw new ArgumentException("A baked frame cannot contain the same slot more than once.", nameof(states));
             }
 
-            _slotGenerations[state.SlotId] = _generation;
+            _slotGenerations[state.SlotId] = _slotGeneration;
             var progressBar = _bars[state.SlotId];
 
             if (!state.Visible)
@@ -175,18 +199,18 @@ public sealed class ProgressBarPool
                 continue;
             }
 
-            Canvas.SetLeft(progressBar, state.StartX * cellWidth);
-            Canvas.SetTop(progressBar, state.Row * cellHeight);
-            progressBar.Width = state.Length * cellWidth;
-            progressBar.Height = cellHeight;
-            progressBar.Maximum = state.Maximum;
-            progressBar.Value = state.Value;
-            progressBar.Visibility = Visibility.Visible;
+            ApplyBarLayout(
+                progressBar,
+                state.Row,
+                state.StartX,
+                state.Length,
+                state.Value,
+                layout);
         }
 
         for (var slotId = 0; slotId < _bars.Count; slotId++)
         {
-            if (_slotGenerations[slotId] != _generation)
+            if (_slotGenerations[slotId] != _slotGeneration)
             {
                 _bars[slotId].Visibility = Visibility.Hidden;
             }
@@ -204,23 +228,99 @@ public sealed class ProgressBarPool
         }
     }
 
-    private void EnsureReady(double cellWidth, double cellHeight)
+    private void EnsureReady(double surfaceWidth, double surfaceHeight)
     {
         if (_gridWidth == 0 || _gridHeight == 0)
         {
             throw new InvalidOperationException("ConfigureGrid must be called before applying a frame.");
         }
 
-        if (!IsPositiveFinite(cellWidth))
+        if (!IsPositiveFinite(surfaceWidth))
         {
-            throw new ArgumentOutOfRangeException(nameof(cellWidth));
+            throw new ArgumentOutOfRangeException(nameof(surfaceWidth));
         }
 
-        if (!IsPositiveFinite(cellHeight))
+        if (!IsPositiveFinite(surfaceHeight))
         {
-            throw new ArgumentOutOfRangeException(nameof(cellHeight));
+            throw new ArgumentOutOfRangeException(nameof(surfaceHeight));
         }
     }
+
+    private void BeginGapLayout()
+    {
+        if (_gapGeneration == int.MaxValue)
+        {
+            Array.Clear(_gapColumnGenerations);
+            _gapGeneration = 0;
+        }
+
+        _gapGeneration++;
+    }
+
+    private void MarkGapColumn(int column)
+    {
+        if (column > 0)
+        {
+            _gapColumnGenerations[column] = _gapGeneration;
+        }
+    }
+
+    private FrameLayout CompleteLayout(double surfaceWidth, double surfaceHeight)
+    {
+        var gapCount = 0;
+
+        for (var column = 0; column <= _gridWidth; column++)
+        {
+            _gapsBeforeColumn[column] = gapCount;
+
+            if (column < _gridWidth && _gapColumnGenerations[column] == _gapGeneration)
+            {
+                gapCount++;
+            }
+        }
+
+        var cellWidth = (surfaceWidth - (gapCount * InterProgressBarGap)) / _gridWidth;
+        var cellHeight = (surfaceHeight - ((_gridHeight - 1) * InterProgressBarGap)) / _gridHeight;
+
+        if (!IsPositiveFinite(cellWidth) || !IsPositiveFinite(cellHeight))
+        {
+            throw new InvalidOperationException("The playback surface is too small to fit the grid and 2px progress-bar gaps.");
+        }
+
+        return new FrameLayout(cellWidth, cellHeight);
+    }
+
+    private void ApplyBarLayout(
+        ProgressBar progressBar,
+        int row,
+        int startX,
+        int length,
+        int blackPrefixLength,
+        FrameLayout layout)
+    {
+        var endX = checked(startX + length);
+        var left = GetPhysicalXAfterGap(startX, layout.CellWidth);
+        var right = GetPhysicalXBeforeGap(endX, layout.CellWidth);
+        var maximum = right - left;
+        var value = blackPrefixLength == 0
+            ? 0
+            : GetPhysicalXBeforeGap(startX + blackPrefixLength, layout.CellWidth) - left;
+
+        Canvas.SetLeft(progressBar, left);
+        Canvas.SetTop(progressBar, row * (layout.CellHeight + InterProgressBarGap));
+        progressBar.Width = maximum;
+        progressBar.Height = layout.CellHeight;
+        progressBar.Maximum = maximum;
+        progressBar.Value = value;
+        progressBar.Visibility = Visibility.Visible;
+    }
+
+    private double GetPhysicalXBeforeGap(int column, double cellWidth) =>
+        (column * cellWidth) + (_gapsBeforeColumn[column] * InterProgressBarGap);
+
+    private double GetPhysicalXAfterGap(int column, double cellWidth) =>
+        GetPhysicalXBeforeGap(column, cellWidth) +
+        (_gapColumnGenerations[column] == _gapGeneration ? InterProgressBarGap : 0);
 
     private void ValidateState(BarState state)
     {
@@ -256,4 +356,6 @@ public sealed class ProgressBarPool
     }
 
     private static bool IsPositiveFinite(double value) => double.IsFinite(value) && value > 0;
+
+    private readonly record struct FrameLayout(double CellWidth, double CellHeight);
 }

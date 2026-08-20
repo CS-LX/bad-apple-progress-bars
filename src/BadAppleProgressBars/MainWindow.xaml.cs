@@ -171,8 +171,8 @@ public partial class MainWindow : Window
         var metadata = _streamPlayer.Header.Metadata;
         _progressBarPool.ApplyStates(
             frame.States,
-            PlaybackCanvas.ActualWidth / metadata.Width,
-            PlaybackCanvas.ActualHeight / metadata.Height);
+            PlaybackCanvas.ActualWidth,
+            PlaybackCanvas.ActualHeight);
     }
 
     private async Task<string> ResolveBakedFilePathAsync()

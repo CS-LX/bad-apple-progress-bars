@@ -214,14 +214,19 @@ Foreground 不主动设置，保留 WPF 默认值。
 
 ### 每帧应用状态
 
+    collect every W→B block start column from all rows
+    insert one shared 2 DIPs horizontal gap at each distinct column
+    cellWidth = (Canvas.Width - gapCount × 2) / gridWidth
+    cellHeight = (Canvas.Height - (gridHeight - 1) × 2) / gridHeight
+
     for each block in current frame:
         bar = pool[blockIndex]
-        Canvas.Left = block.StartX × cellWidth
-        Canvas.Top = row × cellHeight
-        Width = block.Length × cellWidth
+        Canvas.Left = mapped block start (after its own gap)
+        Canvas.Top = row × (cellHeight + 2)
+        Width = mapped block end - mapped block start
         Height = cellHeight
-        Maximum = block.Length
-        Value = block.BlackPrefixLength
+        Maximum = Width
+        Value = mapped black-prefix length
         Visibility = Visible
 
     for each unused pool item:
@@ -233,6 +238,7 @@ Foreground 不主动设置，保留 WPF 默认值。
 
 - BWBW 显示为两个真实的 ProgressBar。
 - WBW 显示为 [W] 和 [BW] 两个逻辑块。
+- 每个不同 ProgressBar 之间保留 2 DIPs 间隙；跨过其他行间隙列的 ProgressBar 宽度和 Value 会增加 `2 × n`，且所有行列对齐。
 - 控件前景色仍为 WPF 默认颜色。
 - 播放帧切换时不调用 Canvas.Children.Add 或 Canvas.Children.Remove。
 - 控件数量只在网格尺寸改变时重新创建。
